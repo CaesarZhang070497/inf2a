@@ -23,18 +23,23 @@ class MH_Typechecker {
     static MH_TYPE BoolType = MH_Type_Impl.BoolType;
 
     static MH_TYPE computeType(MH_EXP exp, TYPE_ENV env) throws TypeError, UnknownVariable {
+        assert !exp.isLAMBDA() : "Unsupported expression";
+        assert !exp.isREF() : "Unsupported expression";
         if (exp.isNUM()) return IntegerType;
         if (exp.isBOOLEAN()) return BoolType;
         if (exp.isVAR()) return env.typeOf(exp.value());
         if (exp.isAPP()) {
             MH_TYPE funcType = computeType(exp.first(), env);
-            assert funcType.isArrow();
+            if (!funcType.isArrow()) throw new TypeError(
+                    "Type mismatch of " + funcType + " found, where arrow type expected in application " + exp.toString(
+                            null) + ".");
             if (funcType.left().equals(computeType(exp.second(), env))) return funcType.right();
             throw new TypeError("Type mismatch of " + computeType(exp.second(),
-                    env) + " found, where " + funcType + " expected in " + exp + ".");
+                    env) + " found, where " + funcType.left() + " expected in " + exp.toString(null) + ".");
         }
         if (exp.isINFIX()) {
-            if (!computeType(exp.first(), env).equals(computeType(exp.second(), env)))
+            if (!computeType(exp.first(), env).isInteger() || !computeType(exp.first(), env).equals(
+                    computeType(exp.second(), env)))
                 throw new TypeError("Type mismatch for infix operation " + exp + ".");
             switch (exp.infixOp()) {
                 case "==":
@@ -44,20 +49,22 @@ class MH_Typechecker {
                 case "-":
                     return IntegerType;
                 default:
-                    throw new TypeError("Invalid infix operator " + exp.infixOp() + " found.");
+                    throw new TypeError("Unsupported infix operator " + exp.infixOp() + " found.");
             }
         }
         if (exp.isIF()) {
             MH_TYPE firstType = computeType(exp.first(), env);
             if (!firstType.isBool()) throw new TypeError(
-                    "Type mismatch of " + firstType + "found, where " + BoolType + " expected in " + exp + ".");
+                    "Type mismatch of " + firstType + "found, where " + BoolType + " expected conditional " + exp.toString(
+                            null) + ".");
             MH_TYPE secondType = computeType(exp.second(), env);
             MH_TYPE thirdType = computeType(exp.third(), env);
             if (!secondType.equals(thirdType)) throw new TypeError(
-                    "Type mismatch of " + secondType + " & " + thirdType + ", expected same types in " + exp + ".");
+                    "Type mismatch of " + secondType + " & " + thirdType + ", expected same types in conditional " + exp
+                            .toString(null) + ".");
             return secondType;
         }
-        throw new RuntimeException("Invalid expression kind found.");
+        throw new AssertionError("Unsupported expression kind.");
     }
 
 
