@@ -60,7 +60,7 @@ class MH_Lexer extends GenLexer implements LEX_TOKEN_STREAM {
         int nextState(int state, char input) {
             switch (state) {
                 case 0:
-                    return input == 0 ? 1 : CharTypes.isDigit(input) ? 2 : numberOfStates() - 1;
+                    return input == '0' ? 1 : CharTypes.isDigit(input) ? 2 : numberOfStates() - 1;
                 case 1:
                     return numberOfStates() - 1;
                 case 2:
@@ -226,7 +226,7 @@ class MH_Lexer extends GenLexer implements LEX_TOKEN_STREAM {
 
         @Override
         boolean accepting(int state) {
-            return state == 3 || state == 4;
+            return state == 2 || state == 3 || state == 4;
         }
 
         @Override
