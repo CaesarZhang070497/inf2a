@@ -35,12 +35,12 @@ class MH_Typechecker {
                             null) + ".");
             if (funcType.left().equals(computeType(exp.second(), env))) return funcType.right();
             throw new TypeError("Type mismatch of " + computeType(exp.second(),
-                    env) + " found, where " + funcType.left() + " expected in " + exp.toString(null) + ".");
+                    env) + " found, where " + funcType.left() + " expected for argument in " + exp.toString(null) + ".");
         }
         if (exp.isINFIX()) {
             if (!computeType(exp.first(), env).isInteger() || !computeType(exp.first(), env).equals(
                     computeType(exp.second(), env)))
-                throw new TypeError("Type mismatch for infix operation " + exp + ".");
+                throw new TypeError("Type mismatch for infix operation " + exp.toString(null) + ".");
             switch (exp.infixOp()) {
                 case "==":
                 case "<=":
@@ -55,12 +55,12 @@ class MH_Typechecker {
         if (exp.isIF()) {
             MH_TYPE firstType = computeType(exp.first(), env);
             if (!firstType.isBool()) throw new TypeError(
-                    "Type mismatch of " + firstType + "found, where " + BoolType + " expected conditional " + exp.toString(
+                    "Type of " + firstType + " found, where " + BoolType + " expected in if conditional " + exp.toString(
                             null) + ".");
             MH_TYPE secondType = computeType(exp.second(), env);
             MH_TYPE thirdType = computeType(exp.third(), env);
             if (!secondType.equals(thirdType)) throw new TypeError(
-                    "Type mismatch of " + secondType + " & " + thirdType + ", expected same types in conditional " + exp
+                    "Type mismatch of " + secondType + " & " + thirdType + ", expected same types in conditional subexpressions " + exp
                             .toString(null) + ".");
             return secondType;
         }
