@@ -22,17 +22,28 @@ class MH_Typechecker {
     static MH_TYPE IntegerType = MH_Type_Impl.IntegerType;
     static MH_TYPE BoolType = MH_Type_Impl.BoolType;
 
+    /**
+     * Computes the resulting type of an expression evaluation and throws TypeError if typechecking fails.
+     * Implementation is verbose and should be self explanatory.
+     *
+     * @param exp Expression to be checked
+     * @param env Type environment for variable type lookup
+     * @return Type of evaluated expression
+     * @throws TypeError
+     * @throws UnknownVariable
+     */
     static MH_TYPE computeType(MH_EXP exp, TYPE_ENV env) throws TypeError, UnknownVariable {
-        assert !exp.isLAMBDA() : "Unsupported expression";
-        assert !exp.isREF() : "Unsupported expression";
+        if (exp.isLAMBDA() || exp.isREF()) throw new TypeError("Unsupported expression.");
         if (exp.isNUM()) return IntegerType;
         if (exp.isBOOLEAN()) return BoolType;
         if (exp.isVAR()) return env.typeOf(exp.value());
         if (exp.isAPP()) {
+            //Make sure function applied is actually arrow type
             MH_TYPE funcType = computeType(exp.first(), env);
             if (!funcType.isArrow()) throw new TypeError(
                     "Type mismatch of " + funcType + " found, where arrow type expected in application " + exp.toString(
                             null) + ".");
+            //Compare expected and actual arg type
             if (funcType.left().equals(computeType(exp.second(), env))) return funcType.right();
             throw new TypeError("Type mismatch of " + computeType(exp.second(),
                     env) + " found, where " + funcType.left() + " expected for argument in " + exp.toString(null) + ".");
@@ -40,7 +51,7 @@ class MH_Typechecker {
         if (exp.isINFIX()) {
             if (!computeType(exp.first(), env).isInteger() || !computeType(exp.first(), env).equals(
                     computeType(exp.second(), env)))
-                throw new TypeError("Type mismatch for infix operation " + exp.toString(null) + ".");
+                throw new TypeError("Type mismatch for infix operation " + exp.toString(null) + ", Integer type expected.");
             switch (exp.infixOp()) {
                 case "==":
                 case "<=":
@@ -64,11 +75,67 @@ class MH_Typechecker {
                             .toString(null) + ".");
             return secondType;
         }
-        throw new AssertionError("Unsupported expression kind.");
+        throw new TypeError("Unsupported expression.");
     }
 
 
     // Type environments:
+
+    static MH_Type_Env compileTypeEnv(TREE prog) throws DuplicatedVariable {
+        return new MH_Type_Env(prog);
+    }
+
+    // Building a closure (using lambda) from argument list and body
+    static MH_EXP buildClosure(TREE args, MH_EXP exp) {
+        if (args.getRhs() == MH_Parser.epsilon) return exp;
+        else {
+            MH_EXP exp1 = buildClosure(args.getChildren()[1], exp);
+            String var = args.getChildren()[0].getValue();
+            return new MH_Exp_Impl(var, exp1);
+        }
+    }
+
+    static Named_MH_EXP typecheckDecl(TREE decl, MH_Type_Env env) throws TypeError, UnknownVariable, DuplicatedVariable, NameMismatchError {
+        // typechecks the given decl against the env,
+        // and returns a name-closure pair for the entity declared.
+        String theVar = decl.getChildren()[0].getChildren()[0].getValue();
+        String theVar1 = decl.getChildren()[1].getChildren()[0].getValue();
+        if (!theVar.equals(theVar1)) throw new NameMismatchError(theVar, theVar1);
+        MH_TYPE theType = MH_Type_Impl.convertType(decl.getChildren()[0].getChildren()[2]);
+        MH_EXP theExp = MH_Exp_Impl.convertExp(decl.getChildren()[1].getChildren()[3]);
+        TREE theArgs = decl.getChildren()[1].getChildren()[1];
+        MH_Type_Env theEnv = new MH_Type_Env(env);
+        MH_TYPE resultType = theEnv.addArgBindings(theArgs, theType);
+        MH_TYPE expType = computeType(theExp, theEnv);
+        if (expType.equals(resultType)) {
+            return new Named_MH_EXP(theVar, buildClosure(theArgs, theExp));
+        } else throw new TypeError("RHS of declaration of " + theVar + " has wrong type");
+    }
+
+    static MH_Exp_Env typecheckProg(TREE prog, MH_Type_Env env) throws TypeError, UnknownVariable, DuplicatedVariable, NameMismatchError {
+        TREE prog1 = prog;
+        TreeMap<String, MH_EXP> treeMap = new TreeMap<String, MH_EXP>();
+        while (prog1.getRhs() != MH_Parser.epsilon) {
+            TREE theDecl = prog1.getChildren()[0];
+            Named_MH_EXP binding = typecheckDecl(theDecl, env);
+            treeMap.put(binding.name, binding.exp);
+            prog1 = prog1.getChildren()[1];
+        }
+        System.out.println("Typecheck successful.");
+        return new MH_Exp_Env(treeMap);
+    }
+
+    public static void main(String[] args) throws Exception {
+        Reader reader = new BufferedReader(new FileReader(args[0]));
+        // try {
+        LEX_TOKEN_STREAM MH_Lexer = new CheckedSymbolLexer(new MH_Lexer(reader));
+        TREE prog = MH_Parser1.parseTokenStream(MH_Lexer);
+        MH_Type_Env typeEnv = compileTypeEnv(prog);
+        MH_Exp_Env runEnv = typecheckProg(prog, typeEnv);
+        // } catch (Exception x) {
+        //  System.out.println ("MH Error: " + x.getMessage()) ;
+        // }
+    }
 
     interface TYPE_ENV {
         MH_TYPE typeOf(String var) throws UnknownVariable;
@@ -77,12 +144,6 @@ class MH_Typechecker {
     static class MH_Type_Env implements TYPE_ENV {
 
         TreeMap<String, MH_TYPE> env;
-
-        public MH_TYPE typeOf(String var) throws UnknownVariable {
-            MH_TYPE t = (MH_TYPE) (env.get(var));
-            if (t == null) throw new UnknownVariable(var);
-            else return t;
-        }
 
         // Constructor for cloning a type env
         MH_Type_Env(MH_Type_Env given) {
@@ -108,6 +169,12 @@ class MH_Typechecker {
             System.out.println("Type conversions successful.");
         }
 
+        public MH_TYPE typeOf(String var) throws UnknownVariable {
+            MH_TYPE t = (MH_TYPE) (env.get(var));
+            if (t == null) throw new UnknownVariable(var);
+            else return t;
+        }
+
         // Augmenting a type env with a list of function arguments.
         // Takes the type of the function, returns the result type.
         MH_TYPE addArgBindings(TREE args, MH_TYPE theType) throws DuplicatedVariable, TypeError {
@@ -118,33 +185,19 @@ class MH_Typechecker {
                     String var = args1.getChildren()[0].getValue();
                     if (env.containsKey(var)) {
                         throw new DuplicatedVariable(var);
-                    }
-                    else {
+                    } else {
                         this.env.put(var, theType1.left());
                         theType1 = theType1.right();
                         args1 = args1.getChildren()[1];
                     }
-                }
-                else throw new TypeError("Too many function arguments");
+                } else throw new TypeError("Too many function arguments");
             }
             ;
             return theType1;
         }
     }
 
-    static MH_Type_Env compileTypeEnv(TREE prog) throws DuplicatedVariable {
-        return new MH_Type_Env(prog);
-    }
-
-    // Building a closure (using lambda) from argument list and body
-    static MH_EXP buildClosure(TREE args, MH_EXP exp) {
-        if (args.getRhs() == MH_Parser.epsilon) return exp;
-        else {
-            MH_EXP exp1 = buildClosure(args.getChildren()[1], exp);
-            String var = args.getChildren()[0].getValue();
-            return new MH_Exp_Impl(var, exp1);
-        }
-    }
+    // For testing:
 
     // Name-closure pairs (result of processing a TermDecl).
     static class Named_MH_EXP {
@@ -155,51 +208,6 @@ class MH_Typechecker {
             this.name = name;
             this.exp = exp;
         }
-    }
-
-    static Named_MH_EXP typecheckDecl(TREE decl, MH_Type_Env env) throws TypeError, UnknownVariable, DuplicatedVariable, NameMismatchError {
-        // typechecks the given decl against the env,
-        // and returns a name-closure pair for the entity declared.
-        String theVar = decl.getChildren()[0].getChildren()[0].getValue();
-        String theVar1 = decl.getChildren()[1].getChildren()[0].getValue();
-        if (!theVar.equals(theVar1)) throw new NameMismatchError(theVar, theVar1);
-        MH_TYPE theType = MH_Type_Impl.convertType(decl.getChildren()[0].getChildren()[2]);
-        MH_EXP theExp = MH_Exp_Impl.convertExp(decl.getChildren()[1].getChildren()[3]);
-        TREE theArgs = decl.getChildren()[1].getChildren()[1];
-        MH_Type_Env theEnv = new MH_Type_Env(env);
-        MH_TYPE resultType = theEnv.addArgBindings(theArgs, theType);
-        MH_TYPE expType = computeType(theExp, theEnv);
-        if (expType.equals(resultType)) {
-            return new Named_MH_EXP(theVar, buildClosure(theArgs, theExp));
-        }
-        else throw new TypeError("RHS of declaration of " + theVar + " has wrong type");
-    }
-
-    static MH_Exp_Env typecheckProg(TREE prog, MH_Type_Env env) throws TypeError, UnknownVariable, DuplicatedVariable, NameMismatchError {
-        TREE prog1 = prog;
-        TreeMap<String, MH_EXP> treeMap = new TreeMap<String, MH_EXP>();
-        while (prog1.getRhs() != MH_Parser.epsilon) {
-            TREE theDecl = prog1.getChildren()[0];
-            Named_MH_EXP binding = typecheckDecl(theDecl, env);
-            treeMap.put(binding.name, binding.exp);
-            prog1 = prog1.getChildren()[1];
-        }
-        System.out.println("Typecheck successful.");
-        return new MH_Exp_Env(treeMap);
-    }
-
-    // For testing:
-
-    public static void main(String[] args) throws Exception {
-        Reader reader = new BufferedReader(new FileReader(args[0]));
-        // try {
-        LEX_TOKEN_STREAM MH_Lexer = new CheckedSymbolLexer(new MH_Lexer(reader));
-        TREE prog = MH_Parser1.parseTokenStream(MH_Lexer);
-        MH_Type_Env typeEnv = compileTypeEnv(prog);
-        MH_Exp_Env runEnv = typecheckProg(prog, typeEnv);
-        // } catch (Exception x) {
-        //  System.out.println ("MH Error: " + x.getMessage()) ;
-        // }
     }
 }
 

@@ -48,6 +48,7 @@ class MH_Parser extends GenParser implements PARSER {
 
     static {
         // Class initialization of LL(1) parse table
+        // Fast lookup using hashmaps.
         tableMap = new HashMap<>();
         Map<String, String[]> hm;
         // #Prog
