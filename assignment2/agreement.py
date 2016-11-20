@@ -42,12 +42,14 @@ grammar = CFG.fromstring('''
 
 chartpsr = parse.ChartParser(grammar)
 
-def all_parses(wlist,lx):
-    """returns all possible parse trees for all possible taggings of wlist"""
-    allp = []
-    for tagging in tag_words(lx, wlist):
-        allp = allp + [t for t in chartpsr.parse(tagging)]
-    return allp
+
+def all_parses(wlist, lx):
+	"""returns all possible parse trees for all possible taggings of wlist"""
+	allp = []
+	for tagging in tag_words(lx, wlist):
+		allp = allp + [t for t in chartpsr.parse(tagging)]
+	return allp
+
 
 # This produces parse trees of type Tree.
 # Available operations on trees:  tr.label(), tr[i],  len(tr)
@@ -68,96 +70,136 @@ def all_parses(wlist,lx):
 #    N[s]   -> "Ns"  etc.
 
 def label(t):
-    if (isinstance(t,str)):
-        return t
-    elif (isinstance(t,tuple)):
-        return t[1]
-    else:
-        return t.label()
+	if (isinstance(t, str)):
+		return t
+	elif (isinstance(t, tuple)):
+		return t[1]
+	else:
+		return t.label()
+
 
 def top_level_rule(tr):
-    if (isinstance(tr,str)):
-        return ''
-    else:
-        rule = tr.label() + ' ->'
-        for t in tr:
-            rule = rule + ' ' + label(t)
-        return rule
-        
+	if (isinstance(tr, str)):
+		return ''
+	else:
+		rule = tr.label() + ' ->'
+		for t in tr:
+			rule = rule + ' ' + label(t)
+		return rule
+
+
 def N_phrase_num(tr):
-    """returns the number attribute of a noun-like tree, based on its head noun"""
-    if (tr.label() == 'N'):
-        return tr[0][1]  # the s or p from Ns or Np
-    elif (tr.label() == 'Nom'):
-        return N_phrase_num(tr[0])
-    elif (False):  # add correct condition here
-        pass # add working code for condition here
+	"""returns the number attribute of a noun-like tree, based on its head noun"""
+	if tr.label() == 'N':
+		return tr[0][1]  # the s or p from Ns or Np
+	elif tr.label() == 'Nom':
+		return N_phrase_num(tr[0])
+	elif tr.label() == 'P':
+		return 's'
+	elif tr.label() == 'AN':  # add correct condition here
+		if tr[0].label() == 'N':
+			return N_phrase_num(tr[0])
+		else:
+			return N_phrase_num(tr[1])
+	elif tr.label() == 'NP':
+		if tr[0].label() == 'AR':
+			return N_phrase_num(tr[1])
+		else:
+			return N_phrase_num(tr[0])
+	else:
+		return ''
+
 
 def V_phrase_num(tr):
-    """returns the number attribute of a verb-like tree, based on its head verb,
-       or '' if this is undetermined."""
-    if (tr.label() == 'T' or tr.label() == 'I'):
-        return tr[0][1]  # the s or p from Is,Ts or Ip,Tp
-    elif (tr.label() == 'VP'):
-        return V_phrase_num(tr[0])
-    elif (False):  # add correct condition here
-        pass # add working code for condition here
+	"""returns the number attribute of a verb-like tree, based on its head verb,
+	   or '' if this is undetermined."""
+	if tr.label() == 'T' or tr.label() == 'I':
+		return tr[0][1]  # the s or p from Is,Ts or Ip,Tp
+	elif tr.label() == 'BE' or tr.label() == 'DO':
+		return tr[0][2] # the s or p from BEs,DOs or BEp,DOp
+	elif tr.label() == 'VP':
+		return V_phrase_num(tr[0])
+	elif tr.label() == 'Rel':
+		return V_phrase_num(tr[1])
+	elif (tr.label() == 'QP') and (tr[0].label() == 'VP'):
+		return V_phrase_num(tr[0])
+	elif (False):  # add correct condition here
+		pass  # add working code for condition here
 
-def matches(n1,n2):
-    return (n1==n2 or n1=='' or n2=='')
+
+def matches(n1, n2):
+	return (n1 == n2 or n1 == '' or n2 == '')
+
 
 def check_node(tr):
-    """checks agreement constraints at the root of tr"""
-    rule = top_level_rule(tr)
-    if (rule == 'S -> WHICH Nom QP QM'):
-        return (matches (N_phrase_num(tr[1]), V_phrase_num(tr[2])))
-    elif (rule == 'NP -> AR Nom'):
-        return (N_phrase_num(tr[1]) == 's')
-    elif (False):  # add correct condition here
-        pass # add working code for condition here
+	"""checks agreement constraints at the root of tr"""
+	rule = top_level_rule(tr)
+	if rule == 'S -> WHICH Nom QP QM':
+		return matches(N_phrase_num(tr[1]), V_phrase_num(tr[2]))
+	elif rule == 'NP -> AR Nom':
+		return N_phrase_num(tr[1]) == 's'
+	elif rule == 'QP -> DO NP T':
+		return matches(V_phrase_num(tr[0]), N_phrase_num(tr[1])) and V_phrase_num(tr[2]) == 'p'
+	elif rule == 'VP -> BE NP':
+		return matches(V_phrase_num(tr[0]), N_phrase_num(tr[1]))
+	elif rule == 'VP -> VP AND VP':
+		return matches(V_phrase_num(tr[0]), V_phrase_num(tr[2]))
+	elif rule == 'NP -> AR Nom':
+		return N_phrase_num(tr[1]) == 's'
+	elif rule == 'NP -> Nom':
+		return N_phrase_num(tr[0]) == 'p'
+	elif rule == 'Nom -> AN Rel':
+		return matches(N_phrase_num(tr[0]), V_phrase_num(tr[1]))
+	elif rule == 'Rel -> NP T':
+		return matches(N_phrase_num(tr[0]), V_phrase_num(tr[1]))
+	else:
+		return True
+
 
 def check_all_nodes(tr):
-    """checks agreement constraints everywhere in tr"""
-    if (isinstance(tr,str)):
-        return True
-    elif (not check_node(tr)):
-        return False
-    else:
-        for subtr in tr:
-            if (not check_all_nodes(subtr)):
-                return False
-        return True
+	"""checks agreement constraints everywhere in tr"""
+	if (isinstance(tr, str)):
+		return True
+	elif (not check_node(tr)):
+		return False
+	else:
+		for subtr in tr:
+			if (not check_all_nodes(subtr)):
+				return False
+		return True
+
 
 def all_valid_parses(lx, wlist):
-    """returns all possible parse trees for all possible taggings of wlist
-       that satisfy agreement constraints"""
-    return [t for t in all_parses(wlist,lx) if check_all_nodes(t)]
+	"""returns all possible parse trees for all possible taggings of wlist
+	   that satisfy agreement constraints"""
+	return [t for t in all_parses(wlist, lx) if check_all_nodes(t)]
 
-            
+
 # Converter to add words back into trees.
 # Strips singular verbs and plural nouns down to their stem.
 
-def restore_words_aux(tr,wds):
-    if (isinstance(tr,str)):
-        wd = wds.pop()
-        if (tr=='Is'):
-            return ('I_' + verb_stem(wd), tr)
-        elif (tr=='Ts'):
-            return ('T_' + verb_stem(wd), tr)
-        elif (tr=='Np'):
-            return ('N_' + noun_stem(wd), tr)
-        elif (tr=='Ip' or tr=='Tp' or tr=='Ns' or tr=='A'):
-            return (tr[0] + '_' + wd, tr)
-        else:
-            return (wd, tr)
-    else:
-        return Tree(tr.label(), [restore_words_aux(t,wds) for t in tr])
+def restore_words_aux(tr, wds):
+	if (isinstance(tr, str)):
+		wd = wds.pop()
+		if (tr == 'Is'):
+			return ('I_' + verb_stem(wd), tr)
+		elif (tr == 'Ts'):
+			return ('T_' + verb_stem(wd), tr)
+		elif (tr == 'Np'):
+			return ('N_' + noun_stem(wd), tr)
+		elif (tr == 'Ip' or tr == 'Tp' or tr == 'Ns' or tr == 'A'):
+			return (tr[0] + '_' + wd, tr)
+		else:
+			return (wd, tr)
+	else:
+		return Tree(tr.label(), [restore_words_aux(t, wds) for t in tr])
 
-def restore_words(tr,wds):
-    """adds words back into syntax tree, sometimes tagged with POS prefixes"""
-    wdscopy = wds+[]
-    wdscopy.reverse()
-    return restore_words_aux(tr,wdscopy)
+
+def restore_words(tr, wds):
+	"""adds words back into syntax tree, sometimes tagged with POS prefixes"""
+	wdscopy = wds + []
+	wdscopy.reverse()
+	return restore_words_aux(tr, wdscopy)
 
 # Example:
 
@@ -168,4 +210,3 @@ def restore_words(tr,wds):
 # tr = restore_words(tr0,['Who','likes','John','?'])
 
 # End of PART C.
-
