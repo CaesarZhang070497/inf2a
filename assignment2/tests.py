@@ -15,6 +15,7 @@ class Part1Test(unittest.TestCase):
 		fb.addUnary("duck", "John")
 		fb.addBinary("love", "John", "Mary")
 		self.assertTrue(fb.queryUnary("duck", "John"))
+		self.assertTrue(fb.queryBinary("love", "John", "Mary"))
 		self.assertFalse(fb.queryBinary("love", "Mary", "John"))
 
 	def testVerbStem1(self):
@@ -91,8 +92,52 @@ class Part2Test(unittest.TestCase):
 		self.assertItemsEqual(["AR"], tag_word(lx, "a"))
 		self.assertItemsEqual([], tag_word(lx, "zxghqw"))
 
+
 class Part3Test(unittest.TestCase):
-	pass
+	def testParseAgreement(self):
+		lx = Lexicon()
+		lx.add('John', 'P')
+		lx.add('orange', 'N')
+		lx.add('orange', 'A')
+		lx.add('like', 'T')
+		lx.add('a', 'AR')
+		tr0 = all_valid_parses(lx, ['Who', 'likes', 'John', '?'])[0]
+		tr = restore_words(tr0, ['Who', 'likes', 'John', '?'])
+		tr.draw()
+
+
+class Part3Test(unittest.TestCase):
+	def setUp(self):
+		self.lx = Lexicon()
+		self.lx.add('John', 'P')
+		self.lx.add('orange', 'N')
+		self.lx.add('orange', 'A')
+		self.lx.add('duck', 'N')
+		self.lx.add('frog', 'N')
+		self.lx.add('like', 'T')
+		self.lx.add('a', 'AR')
+
+	def testSemantics1(self):
+		phrase = 'Who is a duck ?'
+		model = r'(\x. N_duck(x))'
+		tr0 = all_valid_parses(self.lx, phrase.split())[0]
+		tr = restore_words(tr0, phrase.split())
+		self.assertTrue(lp.parse(sem(tr)).simplify(), lp.parse(model).simplify())
+
+	def testSemantics2(self):
+		phrase = 'Which orange duck likes a frog ?'
+		model = r'(\x. ((A_orange(x) & N_duck(x)) & (exists y. (N_frog(y) & T_like(x,y)))))'
+		tr0 = all_valid_parses(self.lx, phrase.split())[0]
+		tr = restore_words(tr0, phrase.split())
+		self.assertTrue(lp.parse(sem(tr)).simplify(), lp.parse(model).simplify())
+
+	def testSemantics3(self):
+		phrase = 'Who does John like ?'
+		model = r'(\x. (exists y.((y=John) & T_like(y,x))))'
+		tr0 = all_valid_parses(self.lx, phrase.split())[0]
+		tr = restore_words(tr0, phrase.split())
+		self.assertTrue(lp.parse(sem(tr)).simplify(), lp.parse(model).simplify())
+
 
 if __name__ == '__main__':
 	unittest.main()

@@ -123,8 +123,8 @@ def V_phrase_num(tr):
 		return V_phrase_num(tr[1])
 	elif (tr.label() == 'QP') and (tr[0].label() == 'VP'):
 		return V_phrase_num(tr[0])
-	elif (False):  # add correct condition here
-		pass  # add working code for condition here
+	else:
+		return ''
 
 
 def matches(n1, n2):
@@ -206,7 +206,7 @@ def restore_words(tr, wds):
 # lx.add('John','P')
 # lx.add('like','T')
 # tr0 = all_valid_parses(lx, ['Who','likes','John','?'])[0]
-# tr.draw()
 # tr = restore_words(tr0,['Who','likes','John','?'])
+# tr.draw()
 
 # End of PART C.

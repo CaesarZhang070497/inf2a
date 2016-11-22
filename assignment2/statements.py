@@ -54,7 +54,7 @@ class FactBase:
 		return (pred, e1) in self.unary_facts
 
 	def addBinary(self, pred, e1, e2):
-		self.binary_facts.add((pred, e1))
+		self.binary_facts.add((pred, e1, e2))
 
 	def queryBinary(self, pred, e1, e2):
 		return (pred, e1, e2) in self.binary_facts
