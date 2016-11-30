@@ -29,7 +29,7 @@ def unchanging_plurals():
 	NNS = set()
 	with open("sentences.txt", "r") as f:
 		for line in f:
-			for word, pos in map(lambda x: x.split('|'), line.split(' ')):
+			for word, pos in [x.split('|') for x in line.split(' ')]:
 				if pos == 'NN':
 					NN.add(word)
 				elif pos == 'NNS':
@@ -38,7 +38,7 @@ def unchanging_plurals():
 
 
 unchanging_plurals_list = unchanging_plurals()
-brown_taggedset = set(brown.tagged_words())
+
 
 def noun_stem(s):
 	def match(pattern):
@@ -46,8 +46,6 @@ def noun_stem(s):
 
 	if s in unchanging_plurals_list:
 		return s
-	if (s, 'NNS') not in brown_taggedset:
-		return ''
 	if match('.*ves'):
 		if (s[:-3] + 'f', 'NN') in brown_taggedset:
 			return s[:-3] + 'f'
@@ -74,9 +72,9 @@ def noun_stem(s):
 
 def tag_word(lx, wd):
 	tagset = {tag for (word, tag) in function_words_tags if word == wd}
-	fixed_lxtags = ['P', 'A']				# Tags with only 1 form
-	variable_noun_lxtags = ['N']			# Noun tags with singular/plural forms
-	variable_verb_lxtags = ['I', 'T']		# Verb tags with singular/plural forms
+	fixed_lxtags = ['P', 'A']  # Tags with only 1 form
+	variable_noun_lxtags = ['N']  # Noun tags with singular/plural forms
+	variable_verb_lxtags = ['I', 'T']  # Verb tags with singular/plural forms
 
 	for tag in fixed_lxtags:
 		if wd in lx.getAll(tag):

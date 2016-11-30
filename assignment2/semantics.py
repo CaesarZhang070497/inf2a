@@ -21,29 +21,22 @@ def sem(tr):
 	elif tr.label() == 'N' or tr.label() == 'A' or tr.label() == 'I':
 		return '(\\x.' + tr[0][0] + '(x))'  # \\ is escape sequence for \
 	elif tr.label() == 'T':  # replace this line with the correct condition
-		return '(\\x.\\y.' + tr[0][0] + '(y,x))'
+		return '(\\x.\\y.' + tr[0][0] + '(x,y))'
 	# Non terminals
 	elif rule == 'S -> WHO QP QM':
 		return '(\\x.(' + sem(tr[1]) + ')(x))'
 	elif rule == 'S -> WHICH Nom QP QM':
 		return '(\\x.(' + sem(tr[1]) + ' (x) &' + sem(tr[2]) + '(x)))'
-
-	elif rule == 'QP -> VP':
-		return sem(tr[0])
 	elif rule == 'QP -> DO NP T':
-		return '(\\x.exists y.(' + sem(tr[1]) + ' (y) & ' + sem(tr[2]) + '(x)(y)))'
-
-	elif rule == 'VP -> I':
-		return sem(tr[0])
+		return '(\\x.exists y.(' + sem(tr[1]) + ' (y) & ' + sem(tr[2]) + '(y)(x)))'
 	elif rule == 'VP -> T NP':
-		return '(\\x.exists y.(' + sem(tr[0]) + '(y)(x) & ' + sem(tr[1]) + '(y)))'
+		return '(\\x.exists y.(' + sem(tr[0]) + '(x)(y) & ' + sem(tr[1]) + '(y)))'
 	elif rule == 'VP -> BE A':
 		return sem(tr[1])
 	elif rule == 'VP -> BE NP':
 		return sem(tr[1])
 	elif rule == 'VP -> VP AND VP':
 		return '(\\x.(' + sem(tr[0]) + '(x) & ' + sem(tr[1]) + '(x)))'
-
 	elif rule == 'NP -> P':
 		return '(\\x. (x=' + sem(tr[0]) + '))'
 	elif rule == 'NP -> AR Nom':
@@ -56,8 +49,6 @@ def sem(tr):
 		return sem(tr[1])
 	elif rule == 'Rel -> NP T':
 		'(exists x.(' + sem(tr[1]) + ' (x) & ' + sem(tr[2]) + '(x)))'
-	elif rule == 'VP -> I':
-		return sem(tr[0])
 	else:
 		return sem(tr[0])
 
@@ -157,7 +148,7 @@ def dialogue():
 				tr = restore_words(trees[0], wds)
 				lam_exp = lp.parse(sem(tr))
 				L = lam_exp.simplify()
-				print L  # useful for debugging
+				# print L  # useful for debugging
 				entities = lx.getAll('P')
 				results = find_all_solutions(L, entities, fb)
 				if (results == []):

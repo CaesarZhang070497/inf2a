@@ -1,0 +1,38 @@
+# Lack of input validation for statements
+We have put in significant work into the parsing and agreement checking for questions, and the system works really well in rejecting questions phrased in invalid grammar. However such validation is severely lacking for the provided methods for statements.
+
+The `process_statement` method provided in statements.py should return an error message for statements not in the grammar provided, but fails to do so and instead returns success most of the time. This leads to really confusing behaviour for the user, as shown below. 
+
+    $$ Tom is an orange cat.
+         OK.
+    $$ Who is a cat?
+         Eh??
+    $$ Who is orange?
+         Eh??
+    $$ Who is an orange?
+         Tom
+
+We are made to believe that 'Tom is an orange cat.' is parsed successfully. Instead the program ignores the last word and fails silently, parsing the sentence as 'Tom is an orange' instead.
+
+This can be significantly improved with just some simple checks, such as for the length of input (and unexpected end of inputs), and should reject the majority of invalid statements such as the example above. POS tagging can also be performed using similar methods as we applied to questions.
+
+# Questions containing words not in lexicon
+    $$ >? Who is a cat?
+         Eh??
+    $$ >? Who is white?
+         Eh??
+    $$ >? Who jumps?
+         Eh??
+
+The above questions when asked to an untrained lexicon fails to parse and returns `Eh??`. A better response would be `No one` or `None` depending on the phrasing of the question. We need a better POS tagging system that is able to infer the POS of the unknown word. 
+
+There are many different solutions to POS tagging, such as the Hidden Markov Model covered in the course. There are however more advanced methods that use MaxEnt or SVM classifiers, and some recent work done on neural network based classifiers. These algorithms work really well for English language and even have surprisingly high accuracy for unknown words. The complexity of implementing and training of such classifiers are well beyond the scope of this course, but many of the models are available as libraries that are easy to use. The one provided by `nltk.pos_tag` for example is based on an Averaged Perceptron model, and can be easily used without detailed knowledge about the implementation.
+
+# Stemming is **hard**
+Stemming of words is hard since there is quite a bit of irregularities in the language due to words being borrowed from other languages. Also, if I'm not wrong (not a linguistics student here) the determination of plural form of English words is based on phonology rather than morphology, so it is even more challenging to convert from singular to plural and vice-versa based on just the spelling of a word.
+ 
+In this coursework we have used a simple set of rules and the help of the Brown corpus to realise a naive stemmer, and fails on trivial cases such as `buses -> buse`. However, even the more advanced stemmers in the `nltk` package with hundreds of rules barely cover all the possible cases.
+
+What we could do is to have a lookup table of the top n most commonly occuring words in the english language. And due to Zipf's law, we don't need that many mappings in our lookup table since the distribution follows a logarithmic scale. In fact a rough calculation indicates that the top 50,000 words should account for >90% of the words used in a given corpus.
+
+We could instead use a lemmatizer instead of stemming. The technique described above is in fact part of how a lemmatizer works (list of exceptions for words). As always, `nltk` provides the `WordNetLemmatizer`, and even supports taking into the context (part of speech) of the word. This allows us to normalize even irregular nouns such as `children -> child`.

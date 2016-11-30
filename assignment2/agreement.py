@@ -116,10 +116,10 @@ def V_phrase_num(tr):
 	if tr.label() == 'T' or tr.label() == 'I':
 		return tr[0][1]  # the s or p from Is,Ts or Ip,Tp
 	elif tr.label() == 'BE' or tr.label() == 'DO':
-		return tr[0][2] # the s or p from BEs,DOs or BEp,DOp
+		return tr[0][2]  # the s or p from BEs,DOs or BEp,DOp
 	elif tr.label() == 'VP':
 		return V_phrase_num(tr[0])
-	elif tr.label() == 'Rel':
+	elif tr.label() == 'Rel' and tr[1].label() == 'VP':
 		return V_phrase_num(tr[1])
 	elif (tr.label() == 'QP') and (tr[0].label() == 'VP'):
 		return V_phrase_num(tr[0])
@@ -136,8 +136,6 @@ def check_node(tr):
 	rule = top_level_rule(tr)
 	if rule == 'S -> WHICH Nom QP QM':
 		return matches(N_phrase_num(tr[1]), V_phrase_num(tr[2]))
-	elif rule == 'NP -> AR Nom':
-		return N_phrase_num(tr[1]) == 's'
 	elif rule == 'QP -> DO NP T':
 		return matches(V_phrase_num(tr[0]), N_phrase_num(tr[1])) and V_phrase_num(tr[2]) == 'p'
 	elif rule == 'VP -> BE NP':

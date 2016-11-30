@@ -9,24 +9,9 @@
 
 # PART A: Processing statements
 
-class IgnoreCase(object):
-    def __init__(self, s):
-        self.__s = s.lower()
-    def __hash__(self):
-        return hash(self.__s)
-    def __eq__(self, other):
-        # ensure proper comparison between instances of this class
-        try:
-           other = other.__s
-        except (TypeError, AttributeError):
-          try:
-             other = other.lower()
-          except:
-             pass
-        return self.__s == other
 
 def add(lst, item):
-	if (item not in lst):
+	if item not in lst:
 		lst.insert(len(lst), item)
 
 
@@ -65,9 +50,11 @@ from nltk.corpus import brown
 
 brown_taggedset = set(brown.tagged_words())
 
+
 def verb_stem(s):
 	def match(pattern):
 		return re.match(pattern + '$', s, re.IGNORECASE)
+
 	stem = ''
 	if match('.*(?<!.[sxyzaeiou]|ch|sh)s'):
 		stem = s[:-1]
@@ -81,7 +68,7 @@ def verb_stem(s):
 		stem = s[:-2]
 	elif match('.*([^s]se|[^z]ze)s'):
 		stem = s[:-1]
-	elif match('have'):		# we ignore is -> be and does -> do, those are handled by function_words_tags
+	elif match('have'):  # we ignore is -> be and does -> do, those are handled by function_words_tags
 		return 'has'
 	elif match('.*(?<!.[iosxz]|ch|sh)es'):
 		stem = s[:-1]
@@ -101,7 +88,7 @@ def add_proper_name(w, lx):
 
 def process_statement(lx, wlist, fb):
 	"""analyses a statement and updates lexicon and fact base accordingly;
-	   returns '' if successful, or error message if not."""
+	returns '' if successful, or error message if not."""
 	# Grammar for the statement language is:
 	#   S  -> P is AR Ns | P is A | P Is | P Ts P
 	#   AR -> a | an
